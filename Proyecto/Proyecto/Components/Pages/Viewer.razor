@@ -1,0 +1,331 @@
+﻿@page "/viewer"
+@using Proyecto.Data
+@using Proyecto.Interfaces
+@using Proyecto.Modelos
+@inject IJSRuntime JsRuntime
+@inject IClienteRepository ClienteRepository
+@inject ILibroRepository LibroRepository
+@inject IHistorialRepository HistorialRepository
+@inject ISinDevolverRepository SinDevolverRepository
+@rendermode InteractiveServer
+
+<h3>Clientes</h3>
+@if (mostrandoFormularioAgregarCliente == true)
+{
+    <h1>Funciono</h1>
+}
+@if (clientes == null)
+{
+    <p><em>Cargando...</em></p>
+}
+else
+{
+    <button @onclick="MostrarFormularioAgregarCliente">Agregar Cliente</button>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Nombre</th>
+                <th>Edad</th>
+                <th>Fecha de Registro</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (mostrandoFormularioAgregarCliente)
+            {
+                <tr>
+                    <td></td>
+                    <td><input @bind-value="nuevoCliente.Nombre" placeholder="Nombre" /></td>
+                    <td><input type="number" @bind-value="nuevoCliente.Edad" placeholder="Edad" /></td>
+                    <td>@DateTime.Now.ToString("dd/MM/yyyy")</td>
+                    <td>
+                        <button @onclick="GuardarCliente">Guardar</button>
+                        <button @onclick="CancelarAgregarCliente">Cancelar</button>
+                    </td>
+                </tr>
+            }
+            @foreach (var cliente in clientes)
+            {
+                <tr>
+                    <td>@cliente.Id</td>
+                    <td>@cliente.Nombre</td>
+                    <td>@cliente.Edad</td>
+                    <td>@cliente.FechaDeRegistro?.ToString("dd/MM/yyyy")</td>
+                    <td>
+                        <button @onclick="() => EditarCliente(cliente.Id)">Editar</button>
+                        <button @onclick="() => EliminarCliente(cliente.Id)">Eliminar</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<h3>Libros</h3>
+@if (libros == null)
+{
+    <p><em>Cargando...</em></p>
+}
+else
+{
+    <button @onclick="AgregarLibro">Agregar Libro</button>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Titulo</th>
+                <th>Autor</th>
+                <th>Año</th>
+                <th>Disponible</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var libro in libros)
+            {
+                <tr>
+                    <td>@libro.Id</td>
+                    <td>@libro.Titulo</td>
+                    <td>@libro.Autor</td>
+                    <td>@libro.Año</td>
+                    <td>@libro.Disponible</td>
+                    <td>
+                        <button @onclick="() => EditarLibro(libro.Id)">Editar</button>
+                        <button @onclick="() => EliminarLibro(libro.Id)">Eliminar</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<h3>Historiales</h3>
+@if (historiales == null)
+{
+    <p><em>Cargando...</em></p>
+}
+else
+{
+    <button @onclick="AgregarHistorial">Agregar Historial</button>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>LibroId</th>
+                <th>ClienteId</th>
+                <th>Fecha Prestamo</th>
+                <th>Fecha Devolucion</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var historial in historiales)
+            {
+                <tr>
+                    <td>@historial.Id</td>
+                    <td>@historial.LibroId</td>
+                    <td>@historial.ClienteId</td>
+                    <td>@historial.FechaPrestamo?.ToString("dd/MM/yyyy")</td>
+                    <td>@historial.FechaDevolucion?.ToString("dd/MM/yyyy")</td>
+                    <td>
+                        <button @onclick="() => EditarHistorial(historial.Id)">Editar</button>
+                        <button @onclick="() => EliminarHistorial(historial.Id)">Eliminar</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<h3>Sin Devolver</h3>
+@if (sinDevolvers == null)
+{
+    <p><em>Cargando...</em></p>
+}
+else
+{
+    <button @onclick="AgregarSinDevolver">Agregar Sin Devolver</button>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>LibroId</th>
+                <th>ClienteId</th>
+                <th>Fecha Prestamo</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var sinDevolver in sinDevolvers)
+            {
+                <tr>
+                    <td>@sinDevolver.Id</td>
+                    <td>@sinDevolver.LibroId</td>
+                    <td>@sinDevolver.ClienteId</td>
+                    <td>@sinDevolver.FechaPrestamo?.ToString("dd/MM/yyyy")</td>
+                    <td>
+                        <button @onclick="() => EditarSinDevolver(sinDevolver.Id)">Editar</button>
+                        <button @onclick="() => EliminarSinDevolver(sinDevolver.Id)">Eliminar</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private IEnumerable<Cliente> clientes;
+    private IEnumerable<Libro> libros;
+    private IEnumerable<Historial> historiales;
+    private IEnumerable<SinDevolver> sinDevolvers;
+
+    private Cliente nuevoCliente = new Cliente();
+    private bool mostrandoFormularioAgregarCliente = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        clientes = await ClienteRepository.GetAll();
+        libros = await LibroRepository.GetAllLibrosAsync();
+        historiales = await HistorialRepository.GetAllHistorialesAsync();
+        sinDevolvers = await SinDevolverRepository.GetAllSinDevolversAsync();
+    }
+
+    private async void MostrarFormularioAgregarCliente()
+    {
+        await JsRuntime.InvokeVoidAsync("console.log", "MostrarFormularioAgregarCliente llamado");
+        mostrandoFormularioAgregarCliente = true;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async Task GuardarCliente()
+    {
+        if (!string.IsNullOrEmpty(nuevoCliente.Nombre) && nuevoCliente.Edad.HasValue)
+        {
+            nuevoCliente.FechaDeRegistro = DateTime.Now;
+            await ClienteRepository.Add(nuevoCliente);
+            clientes = await ClienteRepository.GetAll();
+            CancelarAgregarCliente();
+        }
+    }
+
+    private void CancelarAgregarCliente()
+    {
+        nuevoCliente = new Cliente();
+        mostrandoFormularioAgregarCliente = false;
+        StateHasChanged();
+    }
+
+    private async Task EditarCliente(int? id)
+    {
+        if (id.HasValue)
+        {
+            var cliente = await ClienteRepository.Get(id.Value);
+            if (cliente != null)
+            {
+                cliente.Nombre = "Cliente Editado";
+                await ClienteRepository.Update(cliente);
+                clientes = await ClienteRepository.GetAll();
+            }
+        }
+    }
+
+    private async Task EliminarCliente(int? id)
+    {
+        if (id.HasValue)
+        {
+            await ClienteRepository.Delete(id.Value);
+            clientes = await ClienteRepository.GetAll();
+        }
+    }
+
+    private async Task AgregarLibro()
+    {
+        var nuevoLibro = new Libro { Titulo = "Nuevo Libro", Autor = "Autor Desconocido", Año = DateTime.Now.Year, Disponible = true };
+        await LibroRepository.AddLibroAsync(nuevoLibro);
+        libros = await LibroRepository.GetAllLibrosAsync();
+    }
+
+    private async Task EditarLibro(int? id)
+    {
+        if (id.HasValue)
+        {
+            var libro = await LibroRepository.GetLibroByIdAsync(id.Value);
+            if (libro != null)
+            {
+                libro.Titulo = "Libro Editado";
+                await LibroRepository.UpdateLibroAsync(libro);
+                libros = await LibroRepository.GetAllLibrosAsync();
+            }
+        }
+    }
+
+    private async Task EliminarLibro(int? id)
+    {
+        if (id.HasValue)
+        {
+            await LibroRepository.DeleteLibroAsync(id.Value);
+            libros = await LibroRepository.GetAllLibrosAsync();
+        }
+    }
+
+    private async Task AgregarHistorial()
+    {
+        var nuevoHistorial = new Historial { LibroId = 1, ClienteId = 1, FechaPrestamo = DateTime.Now, FechaDevolucion = DateTime.Now.AddDays(14) };
+        await HistorialRepository.AddHistorialAsync(nuevoHistorial);
+        historiales = await HistorialRepository.GetAllHistorialesAsync();
+    }
+
+    private async Task EditarHistorial(int? id)
+    {
+        if (id.HasValue)
+        {
+            var historial = await HistorialRepository.GetHistorialByIdAsync(id.Value);
+            if (historial != null)
+            {
+                historial.FechaDevolucion = DateTime.Now.AddDays(7);
+                await HistorialRepository.UpdateHistorialAsync(historial);
+                historiales = await HistorialRepository.GetAllHistorialesAsync();
+            }
+        }
+    }
+
+    private async Task EliminarHistorial(int? id)
+    {
+        if (id.HasValue)
+        {
+            await HistorialRepository.DeleteHistorialAsync(id.Value);
+            historiales = await HistorialRepository.GetAllHistorialesAsync();
+        }
+    }
+
+    private async Task AgregarSinDevolver()
+    {
+        var nuevoSinDevolver = new SinDevolver { LibroId = 1, ClienteId = 1, FechaPrestamo = DateTime.Now };
+        await SinDevolverRepository.AddSinDevolverAsync(nuevoSinDevolver);
+        sinDevolvers = await SinDevolverRepository.GetAllSinDevolversAsync();
+    }
+
+    private async Task EditarSinDevolver(int? id)
+    {
+        if (id.HasValue)
+        {
+            var sinDevolver = await SinDevolverRepository.GetSinDevolverByIdAsync(id.Value);
+            if (sinDevolver != null)
+            {
+                sinDevolver.FechaPrestamo = DateTime.Now.AddDays(-1);
+                await SinDevolverRepository.UpdateSinDevolverAsync(sinDevolver);
+                sinDevolvers = await SinDevolverRepository.GetAllSinDevolversAsync();
+            }
+        }
+    }
+
+    private async Task EliminarSinDevolver(int? id)
+    {
+        if (id.HasValue)
+        {
+            await SinDevolverRepository.DeleteSinDevolverAsync(id.Value);
+            sinDevolvers = await SinDevolverRepository.GetAllSinDevolversAsync();
+        }
+    }
+}
